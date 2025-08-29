@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV to VCF Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #4facfe;
+            background-color: #f8f9ff;
+        }
+
+        .upload-area.drag-over {
+            border-color: #4facfe;
+            background-color: #e3f2fd;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .file-info {
+            background: #f5f5f5;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .preview-area {
+            background: #f9f9f9;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        .preview-table th,
+        .preview-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .preview-table th {
+            background-color: #4facfe;
+            color: white;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .mapping-area {
+            background: #f9f9f9;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .field-mapping {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+
+        .field-mapping label {
+            width: 120px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .field-mapping select {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            min-width: 150px;
+        }
+
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 600px) {
+            .field-mapping {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .field-mapping label {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+
+            .field-mapping select {
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📇 CSV to VCF Converter</h1>
+            <p>CSVファイルを連絡先のVCFファイルに変換します</p>
+        </div>
+
+        <div class="content">
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">CSVファイルをドラッグ&ドロップまたはクリックして選択</div>
+                <small>対応形式: .csv</small>
+            </div>
+
+            <input type="file" id="fileInput" accept=".csv" />
+
+            <div class="file-info" id="fileInfo">
+                <strong>ファイル情報:</strong>
+                <div id="fileName"></div>
+                <div id="fileSize"></div>
+                <div id="recordCount"></div>
+            </div>
+
+            <div class="preview-area" id="previewArea">
+                <h3>プレビュー（最初の5行）</h3>
+                <table class="preview-table" id="previewTable"></table>
+            </div>
+
+            <div class="mapping-area" id="mappingArea">
+                <h3>フィールドマッピング</h3>
+                <p>CSVの列をVCFフィールドに対応させてください：</p>
+                
+                <div class="field-mapping">
+                    <label>名前:</label>
+                    <select id="nameField">
+                        <option value="">選択してください</option>
+                    </select>
+                </div>
+                
+                <div class="field-mapping">
+                    <label>電話番号:</label>
+                    <select id="phoneField">
+                        <option value="">選択してください</option>
+                    </select>
+                </div>
+                
+                <div class="field-mapping">
+                    <label>メールアドレス:</label>
+                    <select id="emailField">
+                        <option value="">選択してください</option>
+                    </select>
+                </div>
+                
+                <div class="field-mapping">
+                    <label>会社名:</label>
+                    <select id="companyField">
+                        <option value="">選択してください</option>
+                    </select>
+                </div>
+                
+                <div class="field-mapping">
+                    <label>役職:</label>
+                    <select id="titleField">
+                        <option value="">選択してください</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn" id="convertBtn" onclick="convertToVCF()" disabled>VCFに変換</button>
+                <button class="btn" id="downloadBtn" onclick="downloadVCF()" disabled style="display: none;">VCFをダウンロード</button>
+            </div>
+
+            <div class="status" id="status"></div>
+        </div>
+    </div>
+
+    <script>
+        let csvData = [];
+        let headers = [];
+        let vcfContent = '';
+
+        // ファイルアップロード処理
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.querySelector('.upload-area');
+
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // ドラッグ&ドロップ処理
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                showStatus('CSVファイルを選択してください。', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    parseCSV(e.target.result);
+                    showFileInfo(file);
+                    showPreview();
+                    setupFieldMapping();
+                } catch (error) {
+                    showStatus('CSVファイルの読み込みに失敗しました: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            
+            csvData = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+                if (values.length === headers.length) {
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index];
+                    });
+                    csvData.push(row);
+                }
+            }
+        }
+
+        function showFileInfo(file) {
+            document.getElementById('fileName').textContent = `ファイル名: ${file.name}`;
+            document.getElementById('fileSize').textContent = `サイズ: ${(file.size / 1024).toFixed(2)} KB`;
+            document.getElementById('recordCount').textContent = `レコード数: ${csvData.length}`;
+            document.getElementById('fileInfo').style.display = 'block';
+        }
+
+        function showPreview() {
+            const previewTable = document.getElementById('previewTable');
+            let html = '<thead><tr>';
+            headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            const previewData = csvData.slice(0, 5);
+            previewData.forEach(row => {
+                html += '<tr>';
+                headers.forEach(header => {
+                    html += `<td>${row[header] || ''}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody>';
+
+            previewTable.innerHTML = html;
+            document.getElementById('previewArea').style.display = 'block';
+        }
+
+        function setupFieldMapping() {
+            const selects = ['nameField', 'phoneField', 'emailField', 'companyField', 'titleField'];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                select.innerHTML = '<option value="">選択してください</option>';
+                headers.forEach(header => {
+                    select.innerHTML += `<option value="${header}">${header}</option>`;
+                });
+            });
+
+            // 自動マッピング（推測）
+            autoMapping();
+            
+            document.getElementById('mappingArea').style.display = 'block';
+            document.getElementById('convertBtn').disabled = false;
+        }
+
+        function autoMapping() {
+            const mappings = {
+                nameField: ['name', '名前', '氏名', 'fullname', 'full_name'],
+                phoneField: ['phone', '電話', '電話番号', 'tel', 'telephone', 'mobile'],
+                emailField: ['email', 'mail', 'メール', 'メールアドレス', 'e-mail'],
+                companyField: ['company', '会社', '会社名', 'organization', 'org'],
+                titleField: ['title', '役職', '職位', 'position', 'job']
+            };
+
+            Object.keys(mappings).forEach(fieldId => {
+                const select = document.getElementById(fieldId);
+                const keywords = mappings[fieldId];
+                
+                for (let header of headers) {
+                    if (keywords.some(keyword => 
+                        header.toLowerCase().includes(keyword.toLowerCase())
+                    )) {
+                        select.value = header;
+                        break;
+                    }
+                }
+            });
+        }
+
+        function convertToVCF() {
+            const nameField = document.getElementById('nameField').value;
+            const phoneField = document.getElementById('phoneField').value;
+            const emailField = document.getElementById('emailField').value;
+            const companyField = document.getElementById('companyField').value;
+            const titleField = document.getElementById('titleField').value;
+
+            if (!nameField) {
+                showStatus('名前フィールドは必須です。', 'error');
+                return;
+            }
+
+            vcfContent = '';
+            let convertedCount = 0;
+
+            csvData.forEach(row => {
+                if (row[nameField]) {
+                    vcfContent += 'BEGIN:VCARD\n';
+                    vcfContent += 'VERSION:3.0\n';
+                    vcfContent += `FN:${row[nameField]}\n`;
+                    vcfContent += `N:${row[nameField]};;;;\n`;
+
+                    if (phoneField && row[phoneField]) {
+                        vcfContent += `TEL:${row[phoneField]}\n`;
+                    }
+
+                    if (emailField && row[emailField]) {
+                        vcfContent += `EMAIL:${row[emailField]}\n`;
+                    }
+
+                    if (companyField && row[companyField]) {
+                        vcfContent += `ORG:${row[companyField]}\n`;
+                    }
+
+                    if (titleField && row[titleField]) {
+                        vcfContent += `TITLE:${row[titleField]}\n`;
+                    }
+
+                    vcfContent += 'END:VCARD\n\n';
+                    convertedCount++;
+                }
+            });
+
+            if (convertedCount > 0) {
+                showStatus(`${convertedCount}件の連絡先をVCFに変換しました。`, 'success');
+                document.getElementById('downloadBtn').style.display = 'inline-block';
+                document.getElementById('downloadBtn').disabled = false;
+            } else {
+                showStatus('変換できる連絡先がありませんでした。', 'error');
+            }
+        }
+
+        function downloadVCF() {
+            const blob = new Blob([vcfContent], { type: 'text/vcard' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'contacts.vcf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
