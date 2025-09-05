@@ -186,6 +186,33 @@
             border-color: #e74c3c;
         }
 
+        .phone-type-selection {
+            background: #f0f8ff;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .phone-type-selection h4 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .phone-type-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .phone-type-option {
+            display: flex;
+            align-items: center;
+        }
+
+        .phone-type-option input[type="radio"] {
+            margin-right: 8px;
+        }
+
         .status {
             text-align: center;
             margin: 20px 0;
@@ -230,6 +257,11 @@
             .field-mapping select {
                 margin-bottom: 10px;
             }
+
+            .phone-type-options {
+                flex-direction: column;
+                gap: 10px;
+            }
         }
     </style>
 </head>
@@ -237,7 +269,7 @@
     <div class="container">
         <div class="header">
             <h1>📇 CSV to VCF Converter</h1>
-            <p>CSVファイルを連絡先のVCFファイルに変換します</p>
+            <p>CSVファイルを連絡先のVCFファイルに変換します（iPhone対応）</p>
         </div>
 
         <div class="content">
@@ -281,6 +313,24 @@
                     <select id="phoneField">
                         <option value="">選択してください</option>
                     </select>
+                </div>
+                
+                <div class="phone-type-selection">
+                    <h4>📱 電話番号の種類</h4>
+                    <div class="phone-type-options">
+                        <div class="phone-type-option">
+                            <input type="radio" id="phoneTypeMobile" name="phoneType" value="mobile" checked>
+                            <label for="phoneTypeMobile">携帯電話</label>
+                        </div>
+                        <div class="phone-type-option">
+                            <input type="radio" id="phoneTypeHome" name="phoneType" value="home">
+                            <label for="phoneTypeHome">自宅</label>
+                        </div>
+                        <div class="phone-type-option">
+                            <input type="radio" id="phoneTypeWork" name="phoneType" value="work">
+                            <label for="phoneTypeWork">職場</label>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="field-mapping">
@@ -468,10 +518,35 @@
             });
         }
 
+        function getPhoneType() {
+            const phoneTypeRadios = document.querySelectorAll('input[name="phoneType"]');
+            for (let radio of phoneTypeRadios) {
+                if (radio.checked) {
+                    return radio.value;
+                }
+            }
+            return 'mobile'; // デフォルト
+        }
+
+        function generatePhoneField(phoneNumber, phoneType) {
+            // iPhone対応の電話番号フィールド生成
+            switch(phoneType) {
+                case 'mobile':
+                    return `TEL;type=CELL;type=VOICE;type=pref:${phoneNumber}`;
+                case 'home':
+                    return `TEL;type=HOME;type=VOICE:${phoneNumber}`;
+                case 'work':
+                    return `TEL;type=WORK;type=VOICE:${phoneNumber}`;
+                default:
+                    return `TEL;type=CELL;type=VOICE;type=pref:${phoneNumber}`;
+            }
+        }
+
         function convertToVCF() {
             const nameField = document.getElementById('nameField').value;
             const phoneField = document.getElementById('phoneField').value;
             const furiganaField = document.getElementById('furiganaField').value;
+            const phoneType = getPhoneType();
 
             // 必須項目チェック
             if (!nameField) {
@@ -496,12 +571,14 @@
                     vcfContent += `FN:${row[nameField]}\n`;
                     vcfContent += `N:${row[nameField]};;;;\n`;
 
-                    // 電話番号設定
-                    vcfContent += `TEL:${row[phoneField]}\n`;
+                    // 電話番号設定（iPhone対応形式）
+                    const phoneFieldLine = generatePhoneField(row[phoneField], phoneType);
+                    vcfContent += `${phoneFieldLine}\n`;
 
-                    // フリガナ設定（X-PHONETIC-LAST-NAMEとして出力）
+                    // フリガナ設定（iPhone対応強化）
                     if (furiganaField && row[furiganaField]) {
                         vcfContent += `X-PHONETIC-LAST-NAME:${row[furiganaField]}\n`;
+                        vcfContent += `X-PHONETIC-FIRST-NAME:${row[furiganaField]}\n`;
                         vcfContent += `SORT-STRING:${row[furiganaField]}\n`;
                     }
 
@@ -511,7 +588,7 @@
             });
 
             if (convertedCount > 0) {
-                showStatus(`${convertedCount}件の連絡先をVCFに変換しました。`, 'success');
+                showStatus(`${convertedCount}件の連絡先をVCFに変換しました。（iPhone対応形式）`, 'success');
                 document.getElementById('downloadBtn').style.display = 'inline-block';
                 document.getElementById('downloadBtn').disabled = false;
             } else {
