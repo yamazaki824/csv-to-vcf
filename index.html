@@ -350,7 +350,7 @@
                 </div>
 
                 <div class="furigana-note">
-                    📝 フリガナはiPhoneの「性（フリガナ）」フィールドに取り込まれます
+                    📝 フリガナはiPhoneの「性（フリガナ）」フィールドに取り込まれます（X-PHONETIC-LAST-NAME使用）
                 </div>
             </div>
 
@@ -580,24 +580,19 @@
                     vcfContent += 'BEGIN:VCARD\n';
                     vcfContent += 'VERSION:3.0\n';
                     
-                    // 氏名設定（フリガナに対応したN形式）
+                    // 氏名設定
                     vcfContent += `FN:${row[nameField]}\n`;
+                    vcfContent += `N:${row[nameField]};;;;\n`;
                     
-                    // N形式でのフリガナ対応
-                    if (furiganaField && row[furiganaField]) {
-                        // N:姓;名;ミドルネーム;敬称;サフィックス
-                        vcfContent += `N:${row[nameField]};;;;\n`;
-                        // iPhone用フリガナフィールド（性のフリガナ）
-                        vcfContent += `X-PHONETIC-FAMILY-NAME:${row[furiganaField]}\n`;
-                        vcfContent += `X-PHONETIC-GIVEN-NAME:\n`;
-                        vcfContent += `SORT-STRING:${row[furiganaField]}\n`;
-                    } else {
-                        vcfContent += `N:${row[nameField]};;;;\n`;
-                    }
-
                     // 電話番号設定（iPhone対応形式）
                     const phoneFieldLine = generatePhoneField(row[phoneField], phoneType);
                     vcfContent += `${phoneFieldLine}\n`;
+
+                    // フリガナ設定（X-PHONETIC-LAST-NAME使用）
+                    if (furiganaField && row[furiganaField]) {
+                        vcfContent += `X-PHONETIC-LAST-NAME:${row[furiganaField]}\n`;
+                        vcfContent += `SORT-STRING:${row[furiganaField]}\n`;
+                    }
 
                     vcfContent += 'END:VCARD\n\n';
                     convertedCount++;
