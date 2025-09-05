@@ -243,6 +243,15 @@
             color: #e74c3c;
         }
 
+        .furigana-note {
+            background: #e8f5e8;
+            border-left: 4px solid #4caf50;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 0.9em;
+            color: #2e7d32;
+        }
+
         @media (max-width: 600px) {
             .field-mapping {
                 flex-direction: column;
@@ -338,6 +347,10 @@
                     <select id="furiganaField">
                         <option value="">選択してください</option>
                     </select>
+                </div>
+
+                <div class="furigana-note">
+                    📝 フリガナはiPhoneの「性（フリガナ）」フィールドに取り込まれます
                 </div>
             </div>
 
@@ -567,20 +580,24 @@
                     vcfContent += 'BEGIN:VCARD\n';
                     vcfContent += 'VERSION:3.0\n';
                     
-                    // 氏名設定
+                    // 氏名設定（フリガナに対応したN形式）
                     vcfContent += `FN:${row[nameField]}\n`;
-                    vcfContent += `N:${row[nameField]};;;;\n`;
+                    
+                    // N形式でのフリガナ対応
+                    if (furiganaField && row[furiganaField]) {
+                        // N:姓;名;ミドルネーム;敬称;サフィックス
+                        vcfContent += `N:${row[nameField]};;;;\n`;
+                        // iPhone用フリガナフィールド（性のフリガナ）
+                        vcfContent += `X-PHONETIC-FAMILY-NAME:${row[furiganaField]}\n`;
+                        vcfContent += `X-PHONETIC-GIVEN-NAME:\n`;
+                        vcfContent += `SORT-STRING:${row[furiganaField]}\n`;
+                    } else {
+                        vcfContent += `N:${row[nameField]};;;;\n`;
+                    }
 
                     // 電話番号設定（iPhone対応形式）
                     const phoneFieldLine = generatePhoneField(row[phoneField], phoneType);
                     vcfContent += `${phoneFieldLine}\n`;
-
-                    // フリガナ設定（iPhone対応強化）
-                    if (furiganaField && row[furiganaField]) {
-                        vcfContent += `X-PHONETIC-LAST-NAME:${row[furiganaField]}\n`;
-                        vcfContent += `X-PHONETIC-FIRST-NAME:${row[furiganaField]}\n`;
-                        vcfContent += `SORT-STRING:${row[furiganaField]}\n`;
-                    }
 
                     vcfContent += 'END:VCARD\n\n';
                     convertedCount++;
