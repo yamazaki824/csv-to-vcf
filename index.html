@@ -499,9 +499,9 @@
                     // 電話番号設定
                     vcfContent += `TEL:${row[phoneField]}\n`;
 
-                    // フリガナ設定（SOUND-EXフィールドまたはX-PHONETIC-FIRST-NAMEを使用）
+                    // フリガナ設定（X-PHONETIC-LAST-NAMEとして出力）
                     if (furiganaField && row[furiganaField]) {
-                        vcfContent += `X-PHONETIC-FIRST-NAME:${row[furiganaField]}\n`;
+                        vcfContent += `X-PHONETIC-LAST-NAME:${row[furiganaField]}\n`;
                         vcfContent += `SORT-STRING:${row[furiganaField]}\n`;
                     }
 
