@@ -159,14 +159,19 @@
         .field-mapping {
             display: flex;
             align-items: center;
-            margin: 10px 0;
+            margin: 15px 0;
             flex-wrap: wrap;
         }
 
         .field-mapping label {
-            width: 120px;
+            width: 140px;
             font-weight: bold;
             margin-right: 10px;
+        }
+
+        .field-mapping.required label::after {
+            content: " *";
+            color: #e74c3c;
         }
 
         .field-mapping select {
@@ -175,6 +180,10 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             min-width: 150px;
+        }
+
+        .field-mapping.required select {
+            border-color: #e74c3c;
         }
 
         .status {
@@ -195,6 +204,16 @@
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
+        }
+
+        .required-note {
+            color: #666;
+            font-size: 0.9em;
+            margin: 10px 0;
+        }
+
+        .required-note .required-mark {
+            color: #e74c3c;
         }
 
         @media (max-width: 600px) {
@@ -246,14 +265,18 @@
                 <h3>フィールドマッピング</h3>
                 <p>CSVの列をVCFフィールドに対応させてください：</p>
                 
-                <div class="field-mapping">
-                    <label>名前:</label>
+                <div class="required-note">
+                    <span class="required-mark">*</span> は必須項目です
+                </div>
+                
+                <div class="field-mapping required">
+                    <label>氏名（漢字）:</label>
                     <select id="nameField">
                         <option value="">選択してください</option>
                     </select>
                 </div>
                 
-                <div class="field-mapping">
+                <div class="field-mapping required">
                     <label>電話番号:</label>
                     <select id="phoneField">
                         <option value="">選択してください</option>
@@ -261,22 +284,8 @@
                 </div>
                 
                 <div class="field-mapping">
-                    <label>メールアドレス:</label>
-                    <select id="emailField">
-                        <option value="">選択してください</option>
-                    </select>
-                </div>
-                
-                <div class="field-mapping">
-                    <label>会社名:</label>
-                    <select id="companyField">
-                        <option value="">選択してください</option>
-                    </select>
-                </div>
-                
-                <div class="field-mapping">
-                    <label>役職:</label>
-                    <select id="titleField">
+                    <label>フリガナ:</label>
+                    <select id="furiganaField">
                         <option value="">選択してください</option>
                     </select>
                 </div>
@@ -349,20 +358,45 @@
         }
 
         function parseCSV(text) {
+            // より強力なCSVパーサー（クォート対応）
             const lines = text.trim().split('\n');
-            headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            headers = parseCSVLine(lines[0]);
             
             csvData = [];
             for (let i = 1; i < lines.length; i++) {
-                const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-                if (values.length === headers.length) {
-                    const row = {};
-                    headers.forEach((header, index) => {
-                        row[header] = values[index];
-                    });
-                    csvData.push(row);
+                if (lines[i].trim()) {
+                    const values = parseCSVLine(lines[i]);
+                    if (values.length > 0) {
+                        const row = {};
+                        headers.forEach((header, index) => {
+                            row[header] = values[index] || '';
+                        });
+                        csvData.push(row);
+                    }
                 }
             }
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            
+            result.push(current.trim());
+            return result;
         }
 
         function showFileInfo(file) {
@@ -395,7 +429,7 @@
         }
 
         function setupFieldMapping() {
-            const selects = ['nameField', 'phoneField', 'emailField', 'companyField', 'titleField'];
+            const selects = ['nameField', 'phoneField', 'furiganaField'];
             
             selects.forEach(selectId => {
                 const select = document.getElementById(selectId);
@@ -414,11 +448,9 @@
 
         function autoMapping() {
             const mappings = {
-                nameField: ['name', '名前', '氏名', 'fullname', 'full_name'],
-                phoneField: ['phone', '電話', '電話番号', 'tel', 'telephone', 'mobile'],
-                emailField: ['email', 'mail', 'メール', 'メールアドレス', 'e-mail'],
-                companyField: ['company', '会社', '会社名', 'organization', 'org'],
-                titleField: ['title', '役職', '職位', 'position', 'job']
+                nameField: ['name', '名前', '氏名', 'fullname', '漢字', '姓名'],
+                phoneField: ['phone', '電話', '電話番号', 'tel', 'telephone', 'mobile', '携帯'],
+                furiganaField: ['furigana', 'フリガナ', 'ふりがな', 'kana', 'カナ', 'reading', '読み']
             };
 
             Object.keys(mappings).forEach(fieldId => {
@@ -439,12 +471,16 @@
         function convertToVCF() {
             const nameField = document.getElementById('nameField').value;
             const phoneField = document.getElementById('phoneField').value;
-            const emailField = document.getElementById('emailField').value;
-            const companyField = document.getElementById('companyField').value;
-            const titleField = document.getElementById('titleField').value;
+            const furiganaField = document.getElementById('furiganaField').value;
 
+            // 必須項目チェック
             if (!nameField) {
-                showStatus('名前フィールドは必須です。', 'error');
+                showStatus('氏名（漢字）フィールドは必須です。', 'error');
+                return;
+            }
+
+            if (!phoneField) {
+                showStatus('電話番号フィールドは必須です。', 'error');
                 return;
             }
 
@@ -452,26 +488,21 @@
             let convertedCount = 0;
 
             csvData.forEach(row => {
-                if (row[nameField]) {
+                if (row[nameField] && row[phoneField]) {
                     vcfContent += 'BEGIN:VCARD\n';
                     vcfContent += 'VERSION:3.0\n';
+                    
+                    // 氏名設定
                     vcfContent += `FN:${row[nameField]}\n`;
                     vcfContent += `N:${row[nameField]};;;;\n`;
 
-                    if (phoneField && row[phoneField]) {
-                        vcfContent += `TEL:${row[phoneField]}\n`;
-                    }
+                    // 電話番号設定
+                    vcfContent += `TEL:${row[phoneField]}\n`;
 
-                    if (emailField && row[emailField]) {
-                        vcfContent += `EMAIL:${row[emailField]}\n`;
-                    }
-
-                    if (companyField && row[companyField]) {
-                        vcfContent += `ORG:${row[companyField]}\n`;
-                    }
-
-                    if (titleField && row[titleField]) {
-                        vcfContent += `TITLE:${row[titleField]}\n`;
+                    // フリガナ設定（SOUND-EXフィールドまたはX-PHONETIC-FIRST-NAMEを使用）
+                    if (furiganaField && row[furiganaField]) {
+                        vcfContent += `X-PHONETIC-FIRST-NAME:${row[furiganaField]}\n`;
+                        vcfContent += `SORT-STRING:${row[furiganaField]}\n`;
                     }
 
                     vcfContent += 'END:VCARD\n\n';
@@ -484,12 +515,12 @@
                 document.getElementById('downloadBtn').style.display = 'inline-block';
                 document.getElementById('downloadBtn').disabled = false;
             } else {
-                showStatus('変換できる連絡先がありませんでした。', 'error');
+                showStatus('変換できる連絡先がありませんでした。氏名と電話番号の両方が入力されている行のみ変換されます。', 'error');
             }
         }
 
         function downloadVCF() {
-            const blob = new Blob([vcfContent], { type: 'text/vcard' });
+            const blob = new Blob([vcfContent], { type: 'text/vcard; charset=utf-8' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
